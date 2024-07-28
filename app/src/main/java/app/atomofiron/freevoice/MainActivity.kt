@@ -100,17 +100,22 @@ fun ColumnScope.Recorder(activity: ComponentActivity, recorder: MediaRecorder) {
     var format by remember { mutableStateOf(Format.Mpeg) }
     var allowed by remember { mutableStateOf(false) }
     LaunchedEffect(interactionSource) {
+        var started = false
         interactionSource.interactions.collect { interaction ->
             if (!activity.checkPermission()) {
                 return@collect
             }
-            recording = interaction is PressInteraction.Press
-            allowed = interaction !is PressInteraction.Press
             when (interaction) {
                 is PressInteraction.Press -> recorder.record(activity.filePath(format.ext), encoder, format)
+                    ?.also { activity.alert(it.toString()) }
+                    .let { started = it == null }
                 is PressInteraction.Cancel,
-                is PressInteraction.Release -> recorder.stop()
+                is PressInteraction.Release -> recorder.takeIf { started }
+                    ?.end()
+                    ?.let { activity.alert(it.toString()) }
             }
+            allowed = interaction !is PressInteraction.Press
+            recording = started && interaction is PressInteraction.Press
         }
     }
     if (settings) LazyVerticalStaggeredGrid(
@@ -185,15 +190,29 @@ fun Cell(text: String, selected: Boolean, onClick: () -> Unit) {
     )
 }
 
-private fun MediaRecorder.record(path: String, encoder: Encoder, format: Format) {
+private fun MediaRecorder.record(path: String, encoder: Encoder, format: Format): Exception? {
+    reset()
     setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
     setOutputFormat(format.value)
     setAudioEncoder(encoder.value)
     setAudioSamplingRate(48000)
     setOutputFile(path)
     prepare()
-    start()
+    return tryRun { start() }
 }
+
+private fun MediaRecorder.end(): Exception? = tryRun { stop() }
+
+inline fun tryRun(action: () -> Unit): Exception? {
+    try {
+        action()
+    } catch (e: Exception) {
+        return e
+    }
+    return null
+}
+
+private fun Context.alert(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
 private fun Context.send(format: Format) {
     val intent = Intent(Intent.ACTION_SEND)
