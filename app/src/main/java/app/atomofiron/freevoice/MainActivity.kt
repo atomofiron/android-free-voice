@@ -1,12 +1,15 @@
 package app.atomofiron.freevoice
 
+import android.Manifest.permission.RECORD_AUDIO
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.media.MediaRecorder
 import android.media.MediaRecorder.AudioEncoder
 import android.media.MediaRecorder.OutputFormat
 import android.net.Uri.*
 import android.os.Build.VERSION.SDK_INT
+import android.os.Build.VERSION_CODES.M
 import android.os.Build.VERSION_CODES.S
 import android.os.Bundle
 import android.widget.Toast
@@ -89,7 +92,7 @@ enum class Encoder(val value: Int, val title: String) {
 fun Context.filePath(ext: String) = "${filesDir.absolutePath}/$FILE_NAME.$ext"
 
 @Composable
-fun ColumnScope.Recorder(context: Context, recorder: MediaRecorder) {
+fun ColumnScope.Recorder(activity: ComponentActivity, recorder: MediaRecorder) {
     val interactionSource = remember { MutableInteractionSource() }
     var recording by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
@@ -98,10 +101,13 @@ fun ColumnScope.Recorder(context: Context, recorder: MediaRecorder) {
     var allowed by remember { mutableStateOf(false) }
     LaunchedEffect(interactionSource) {
         interactionSource.interactions.collect { interaction ->
+            if (!activity.checkPermission()) {
+                return@collect
+            }
             recording = interaction is PressInteraction.Press
             allowed = interaction !is PressInteraction.Press
             when (interaction) {
-                is PressInteraction.Press -> recorder.record(context.filePath(format.ext), encoder, format)
+                is PressInteraction.Press -> recorder.record(activity.filePath(format.ext), encoder, format)
                 is PressInteraction.Cancel,
                 is PressInteraction.Release -> recorder.stop()
             }
@@ -132,7 +138,7 @@ fun ColumnScope.Recorder(context: Context, recorder: MediaRecorder) {
                 contentDescription = null,
             )
         }
-        SomeIconButton(R.drawable.ic_send, enabled = allowed, onClick = { context.send(format) })
+        SomeIconButton(R.drawable.ic_send, enabled = allowed, onClick = { activity.send(format) })
     }
     SomeIconButton(R.drawable.ic_settings, onClick = { settings = !settings })
 }
@@ -199,4 +205,12 @@ private fun Context.send(format: Format) {
         null -> Toast.makeText(this, "Nope", Toast.LENGTH_SHORT).show()
         else -> startActivity(Intent.createChooser(intent, "Send the voice message"))
     }
+}
+
+private fun ComponentActivity.checkPermission(): Boolean {
+    if (SDK_INT < M || checkSelfPermission(RECORD_AUDIO) == PERMISSION_GRANTED) {
+        return true
+    }
+    requestPermissions(arrayOf(RECORD_AUDIO), 1)
+    return false
 }
