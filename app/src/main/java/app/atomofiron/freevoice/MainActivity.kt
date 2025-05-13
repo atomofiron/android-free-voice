@@ -38,10 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.lifecycleScope
 import app.atomofiron.freevoice.ui.theme.FreeVoiceTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 const val FILE_NAME = "voicemessage"
 
@@ -52,13 +49,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        lifecycleScope.launch(Dispatchers.Main) {
+        var brokenAndroidFix: (() -> Unit)?
+        brokenAndroidFix = {
+            brokenAndroidFix = null
             enableEdgeToEdge(navigationBarStyle = SystemBarStyle.auto(0x01808080, 0x01808080))
         }
 
         setContent {
             FreeVoiceTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    brokenAndroidFix?.invoke()
                     Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                         Column(
                             modifier = Modifier.align(Alignment.BottomCenter),
