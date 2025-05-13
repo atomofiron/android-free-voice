@@ -7,9 +7,7 @@ import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.media.MediaRecorder
 import android.media.MediaRecorder.AudioEncoder
 import android.media.MediaRecorder.OutputFormat
-import android.net.Uri.*
 import android.os.Build.VERSION.SDK_INT
-import android.os.Build.VERSION_CODES.M
 import android.os.Build.VERSION_CODES.S
 import android.os.Bundle
 import android.widget.Toast
@@ -39,6 +37,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.atomofiron.freevoice.ui.theme.FreeVoiceTheme
+import androidx.core.net.toUri
 
 const val FILE_NAME = "voicemessage"
 
@@ -92,7 +91,7 @@ enum class Encoder(val value: Int, val title: String) {
 fun Context.filePath(ext: String) = "${filesDir.absolutePath}/$FILE_NAME.$ext"
 
 @Composable
-fun ColumnScope.Recorder(activity: ComponentActivity, recorder: MediaRecorder) {
+fun Recorder(activity: ComponentActivity, recorder: MediaRecorder) {
     val interactionSource = remember { MutableInteractionSource() }
     var recording by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
@@ -216,7 +215,7 @@ private fun Context.alert(message: String) = Toast.makeText(this, message, Toast
 
 private fun Context.send(format: Format) {
     val intent = Intent(Intent.ACTION_SEND)
-        .putExtra(Intent.EXTRA_STREAM, parse("content://${BuildConfig.AUTHORITY}/$FILE_NAME.${format.ext}"))
+        .putExtra(Intent.EXTRA_STREAM, "content://${BuildConfig.AUTHORITY}/$FILE_NAME.${format.ext}".toUri())
         .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf(MIME_TYPE))
         .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         .setType(MIME_TYPE)
@@ -227,7 +226,7 @@ private fun Context.send(format: Format) {
 }
 
 private fun ComponentActivity.checkPermission(): Boolean {
-    if (SDK_INT < M || checkSelfPermission(RECORD_AUDIO) == PERMISSION_GRANTED) {
+    if (checkSelfPermission(RECORD_AUDIO) == PERMISSION_GRANTED) {
         return true
     }
     requestPermissions(arrayOf(RECORD_AUDIO), 1)
